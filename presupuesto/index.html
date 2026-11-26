@@ -73,10 +73,14 @@ table.apu td.ds{font-family:inherit;text-align:left}
 @container (max-width:600px){.pt{grid-template-columns:repeat(4,auto);justify-content:end;padding-left:40px}.pt .d{grid-column:1/-1}table.apu{font-size:10px}table.apu td,table.apu th{padding:3px 3px}}
 .thumbs{display:flex;gap:8px;padding:8px 10px;flex-wrap:wrap;border-top:1px solid #f1f5f9}
 .thumbs img{height:110px;border:1px solid var(--line);border-radius:6px;cursor:zoom-in;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.acc{display:flex;align-items:center;gap:4px;flex-wrap:wrap;padding:2px 4px}
+.fbtn{border:1px solid #1d4ed8;background:#eff6ff;color:#1d4ed8;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-left:6px}
+#lb{overflow:auto}
 .lnk{font-size:11px;font-weight:700;color:#1d4ed8;text-decoration:none;padding:6px 10px;display:inline-block}
 .empty{padding:30px;text-align:center;color:var(--muted)}
 #lb{position:fixed;inset:0;background:rgba(15,23,42,.88);z-index:50;display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px;padding:20px}
-#lb img{max-width:96vw;max-height:84vh;background:#fff;border-radius:4px}
+#lb img{max-width:96vw;max-height:84vh;background:#fff;border-radius:4px;cursor:zoom-in}
+#lb.z{display:block!important;text-align:center}#lb.z img{max-height:none;width:min(1100px,96vw);cursor:zoom-out}
 #lb .cap{color:#fff;font-size:13px;font-weight:600}
 #lb .x{position:absolute;top:10px;right:16px;color:#fff;font-size:30px;cursor:pointer}
 #login{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:40}
@@ -326,7 +330,8 @@ function(OAuthInfo,IM,WebMap,MapView,esriRequest,esriConfig){
           (sv.items||[]).forEach(i=>{h+=`<tr><td class="ds">${esc(i.desc)} <span style="color:#94a3b8;font-family:var(--mono);font-size:10px">${esc(i.clave||"")}</span></td><td>${esc(i.unidad||"")}</td><td>${f3(i.rendimiento)}</td><td>${f3(i.cantidad)}</td><td>${f2(i.cu)}</td><td>${f2(i.total)}</td></tr>`});
           h+="</table>";
         }
-        h+=lnk("CGR","Ver base CGR (PDF)")+"</div>";
+        const im=`cgr/p${a.pagina||r.PAG_CGR}.jpg`;
+        h+=`<div class="thumbs"><img src="${im}" data-cap="CGR · página ${esc(a.pagina||r.PAG_CGR)}" alt="CGR"></div>`+acc(im,"CGR · página "+(a.pagina||r.PAG_CGR),"CGR","Ver base CGR (PDF)")+"</div>";
       } else h+=`<div class="det"><div class="dh"><div class="k">CGR pág. ${r.PAG_CGR}</div><div class="su">Análisis de precio no cargado para esta página.</div></div>${lnk("CGR","Ver base CGR (PDF)")}</div>`;
     }
     if(r.COTIZACION){
@@ -337,17 +342,20 @@ function(OAuthInfo,IM,WebMap,MapView,esriRequest,esriConfig){
           .forEach(d=>{h+=`<div class="cline"><span>${esc(d.DESCRIPCION)}</span><span class="p">B/.${f2(d.PU)} / ${esc(d.UNIDAD)}</span></div>`});
         const ims=ST.img[code]||[];
         if(ims.length) h+='<div class="thumbs">'+ims.map(i=>`<img src="${esc(i.url)}" data-cap="${esc(code+" · "+(c.PROVEEDOR||""))}" alt="${esc(i.name)}">`).join("")+"</div>";
-        h+=lnk(code,"Ver PDF de la cotización")+"</div>";
+        h+=acc(ims[0]&&ims[0].url,code+" · "+(c.PROVEEDOR||""),code,"Ver PDF de la cotización")+"</div>";
       });
     }
     if(!h) h=`<div class="det" style="border-left-color:#dc2626"><div class="dh" style="background:#7f1d1d"><div class="k" style="color:#fecaca">Sin respaldo de precio</div><div class="su">Fuente: ${esc(r.TIPO_PRECIO||"—")}. Falta asignar cotización o página CGR.</div></div></div>`;
     return h;
   }
+  function acc(img,cap,code,t){return `<div class="acc">${img?`<button class="fbtn" data-img="${esc(img)}" data-cap="${esc(cap)}">📷 Ver foto</button>`:""}${lnk(code,t)}</div>`}
   function lnk(code,t){const c=ST.cot[code];return c&&c.URL?`<a class="lnk" href="${esc(c.URL)}" target="_blank">${t} ↗</a>`:""}
 
   // ---------- eventos ----------
   $("tree").addEventListener("click",ev=>{
     const im=ev.target.closest(".thumbs img");
+    const fb=ev.target.closest(".fbtn");
+    if(fb){ $("lbi").src=fb.dataset.img; $("lbc").textContent=fb.dataset.cap; $("lb").style.display="flex"; return; }
     if(im){ $("lbi").src=im.src; $("lbc").textContent=im.dataset.cap; $("lb").style.display="flex"; return; }
     if(ev.target.closest("a"))return;
     const n=ev.target.closest("[data-id]"); if(!n)return;
@@ -355,7 +363,7 @@ function(OAuthInfo,IM,WebMap,MapView,esriRequest,esriConfig){
     const m=id.match(/\|A:([^|]+)$/); if(m&&ST.open.has(id)) zoomAK(m[1]);
     render();
   });
-  $("lb").onclick=()=>{$("lb").style.display="none"};
+  $("lb").onclick=ev=>{ if(ev.target.id==="lbi"){ $("lb").classList.toggle("z"); return; } $("lb").classList.remove("z"); $("lb").style.display="none"};
   $("q").oninput=e=>{ST.q=e.target.value;render()};
   $("ex").onclick=()=>{ // abre hasta nivel actividad
     filtered().forEach(r=>{const multi=!ST.sector&&new Set(ST.rows.map(x=>x.SECTOR)).size>1;const p0=multi?"S:"+r.SECTOR:"S:";
