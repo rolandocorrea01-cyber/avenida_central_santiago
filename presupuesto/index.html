@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Avenida Central · Presupuesto</title>
+<link rel="stylesheet" href="https://js.arcgis.com/4.31/esri/themes/light/main.css">
+<style>
+:root{--navy:#1e3a5f;--navy2:#2c4f7c;--bg:#f4f6f9;--line:#e2e8f0;--muted:#64748b;--ink:#0f172a;--gold:#facc15;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--panelW:min(620px,46vw)}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+#top{position:fixed;inset:0 0 auto 0;height:52px;background:var(--navy);color:#fff;display:flex;align-items:center;gap:10px;padding:0 12px;z-index:20;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+#top h1{font-size:15px;margin:0;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#top .sub{font-size:11px;color:#94c5f8;font-weight:600}
+#top .sp{flex:1}
+.tbtn{background:transparent;border:1px solid rgba(255,255,255,.45);color:#fff;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;text-decoration:none}
+.tbtn.primary{background:var(--gold);color:var(--navy);border-color:var(--gold)}
+#map{position:fixed;top:52px;left:0;right:0;bottom:0;transition:right .25s}
+body.open #map{right:var(--panelW)}
+#panel{position:fixed;top:52px;right:0;bottom:0;width:var(--panelW);background:#fff;border-left:1px solid var(--line);transform:translateX(100%);transition:transform .25s;z-index:15;display:flex;flex-direction:column}
+body.open #panel{transform:none}
+#ph{padding:10px 12px 6px;border-bottom:1px solid var(--line)}
+#ph .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px}
+.lbl{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-right:2px}
+.pill{border:1px solid var(--navy);background:#fff;color:var(--navy);border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap}
+.pill.on{background:var(--navy);color:#fff}
+.pill.ak{border-radius:5px}
+#tot{display:flex;justify-content:space-between;align-items:baseline;background:var(--navy);color:#fff;border-radius:8px;padding:8px 12px;margin:2px 0 6px}
+#tot b{font-family:var(--mono);font-size:17px}
+#tot span{font-size:11px;color:#cbd5e1}
+#tools{display:flex;gap:6px;align-items:center}
+#tools input{flex:1;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:12px}
+.sbtn{border:1px solid var(--line);background:#fff;border-radius:6px;padding:6px 8px;font-size:11px;font-weight:600;cursor:pointer;color:var(--navy)}
+#tree{flex:1;overflow:auto;font-size:12.5px}
+.n{display:flex;align-items:center;gap:6px;padding:7px 10px;border-bottom:1px solid #eef2f7;cursor:pointer;user-select:none}
+.n:hover{background:#f8fafc}
+.n .car{width:12px;color:var(--muted);font-size:10px;flex:none;transition:transform .15s}
+.n.op>.car{transform:rotate(90deg)}
+.n .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.n .v{font-family:var(--mono);font-weight:700;white-space:nowrap}
+.l0{background:#eef3f8;font-weight:800;font-size:13.5px}
+.l1{padding-left:24px;font-weight:700;color:#1f2d3d}
+.l2{padding-left:38px}
+.l3{padding-left:54px;color:#334155}
+.akb{display:inline-block;border-radius:5px;padding:2px 8px;font-size:10.5px;font-weight:800;color:#fff}
+.pt{display:grid;grid-template-columns:1fr auto auto auto auto;gap:2px 10px;padding:6px 10px 6px 70px;border-bottom:1px solid #f1f5f9;cursor:pointer;align-items:center}
+.pt:hover{background:#fafcff}
+.pt .d{font-size:12px}
+.pt .m{font-family:var(--mono);font-size:11.5px;text-align:right;white-space:nowrap}
+.pt .m.tc{font-weight:800}
+.tag{font-size:10px;font-weight:800;border-radius:4px;padding:1px 6px;white-space:nowrap}
+.tag.cgr{background:#ede9fe;color:#5b21b6}
+.tag.cot{background:#dcfce7;color:#166534}
+.tag.pen{background:#fee2e2;color:#991b1b}
+.det{margin:4px 10px 10px 70px;border:1px solid var(--line);border-left:3px solid #8b5cf6;border-radius:8px;overflow:hidden;background:#fff}
+.det.cotz{border-left-color:#16a34a}
+.dh{background:var(--navy);color:#fff;padding:8px 10px}
+.dh .k{font-size:10px;font-weight:800;color:#94c5f8;text-transform:uppercase}
+.dh .ti{font-size:12px;font-weight:700;margin-top:2px}
+.dh .su{font-size:10.5px;color:#cbd5e1;margin-top:2px}
+.sec{font-size:10.5px;font-weight:800;color:#4c1d95;text-align:right;padding:6px 10px 2px;background:#f5f3ff}
+table.apu{width:100%;border-collapse:collapse;font-size:11px}
+table.apu th{background:#f1f5f9;color:#475569;font-size:9.5px;text-transform:uppercase;padding:3px 6px;text-align:right}
+table.apu th:first-child,table.apu td:first-child{text-align:left}
+table.apu td{padding:3px 6px;border-top:1px solid #f1f5f9;text-align:right;font-family:var(--mono)}
+table.apu td.ds{font-family:inherit;text-align:left}
+.cline{display:flex;justify-content:space-between;gap:10px;padding:6px 10px;border-top:1px solid #f1f5f9;font-size:11.5px}
+.cline .p{font-family:var(--mono);font-weight:800;white-space:nowrap}
+.thumbs{display:flex;gap:8px;padding:8px 10px;flex-wrap:wrap;border-top:1px solid #f1f5f9}
+.thumbs img{height:110px;border:1px solid var(--line);border-radius:6px;cursor:zoom-in;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.lnk{font-size:11px;font-weight:700;color:#1d4ed8;text-decoration:none;padding:6px 10px;display:inline-block}
+.empty{padding:30px;text-align:center;color:var(--muted)}
+#lb{position:fixed;inset:0;background:rgba(15,23,42,.88);z-index:50;display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px;padding:20px}
+#lb img{max-width:96vw;max-height:84vh;background:#fff;border-radius:4px}
+#lb .cap{color:#fff;font-size:13px;font-weight:600}
+#lb .x{position:absolute;top:10px;right:16px;color:#fff;font-size:30px;cursor:pointer}
+#login{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:40}
+#login .card{background:#fff;border-radius:12px;padding:28px;max-width:360px;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.12)}
+#login button{margin-top:14px;background:var(--navy);color:#fff;border:0;border-radius:8px;padding:10px 18px;font-weight:700;cursor:pointer}
+#hint{position:fixed;left:12px;bottom:28px;z-index:12;background:rgba(30,58,95,.92);color:#fff;font-size:12px;padding:7px 10px;border-radius:8px;max-width:70vw}
+@media (max-width:760px){
+  :root{--panelW:100vw}
+  body.open #map{right:0;bottom:58vh}
+  #panel{top:auto;height:58vh;width:100vw;transform:translateY(100%);border-left:0;border-top:2px solid var(--navy)}
+  body.open #panel{transform:none}
+  #top h1{font-size:13px} .hide-m{display:none}
+  .pt{padding-left:36px;grid-template-columns:1fr auto auto} .pt .m.s,.pt .m.i{display:none}
+  .det{margin-left:12px} .l3{padding-left:40px}
+}
+</style>
+</head>
+<body>
+<div id="top">
+  <div style="min-width:0"><h1>Avenida Central · Presupuesto</h1><div class="sub" id="who">Santiago de Veraguas</div></div>
+  <div class="sp"></div>
+  <a class="tbtn hide-m" href="https://experience.arcgis.com/experience/f67600e6c44546a4859f4815bd63ec90" target="_blank">Planificación ↗</a>
+  <a class="tbtn hide-m" href="https://rolandocorrea01-cyber.github.io/avenida_central_santiago/" target="_blank">Proyecto ↗</a>
+  <button class="tbtn primary" id="tgl">Presupuesto ▸</button>
+</div>
+<div id="map"></div>
+<div id="hint">Toque un sector o un local en el mapa para ver su presupuesto.</div>
+<aside id="panel">
+  <div id="ph">
+    <div class="row" id="secs"></div>
+    <div id="tot"><span id="totl">Todos los sectores</span><b id="totv">—</b></div>
+    <div class="row"><span class="lbl">Fuente</span><span id="ff"></span></div>
+    <div class="row"><span class="lbl">Ítem</span><span id="fi"></span></div>
+    <div class="row" id="aks"></div>
+    <div id="tools"><input id="q" placeholder="Buscar actividad, descripción, código…"><button class="sbtn" id="ex">Expandir todo</button><button class="sbtn" id="co">Colapsar</button></div>
+  </div>
+  <div id="tree"><div class="empty">Cargando…</div></div>
+</aside>
+<div id="lb"><span class="x" id="lbx">×</span><img id="lbi" alt=""><div class="cap" id="lbc"></div></div>
+<div id="login" style="display:none"><div class="card"><div style="font-size:15px;font-weight:800;color:#1e3a5f">Avenida Central · Presupuesto</div><p style="font-size:13px;color:#475569">Los datos son privados. Inicie sesión con su cuenta de ArcGIS de la Alcaldía.</p><button id="lgb">Iniciar sesión</button></div></div>
+<script src="https://js.arcgis.com/4.31/"></script>
+<script>
+const CFG={portal:"https://musantiago.maps.arcgis.com",appId:"v3Z342SxRg8unWyl",webmap:"c27aec7651ed433b84f4ed24b262066b",
+  svc:"https://services7.arcgis.com/Zpix2Cuhh6exoZFh/arcgis/rest/services/Avenida_Central_Presupuesto/FeatureServer",
+  cgrItem:null};
+const AKC={AEVE:"#10b981",OPTICA:"#3b82f6",LETRUSCO:"#f97316",PCELL:"#ec4899","LETRUSCO-YAJOIS":"#ea580c","MUEBLERIA-OPTICA":"#6366f1","MUEBLERIA-OPTICA-PRIV":"#4f46e5","OPTICA-LETRUSCO":"#8b5cf6","MUEBLERIA MODERNA":"#64748b"};
+const akColor=a=>AKC[a]||"#475569";
+const $=id=>document.getElementById(id);
+const f2=v=>(v==null||isNaN(v))?"—":Number(v).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const f3=v=>(v==null||isNaN(v))?"—":Number(v).toLocaleString("en-US",{maximumFractionDigits:3});
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const ST={rows:[],cot:{},cdet:[],apu:{},img:{},sector:null,ak:null,fuente:"all",item:"all",q:"",open:new Set(),map:null,view:null,locales:null};
+
+require(["esri/identity/OAuthInfo","esri/identity/IdentityManager","esri/WebMap","esri/views/MapView","esri/request","esri/config"],
+function(OAuthInfo,IM,WebMap,MapView,esriRequest,esriConfig){
+  esriConfig.portalUrl=CFG.portal;
+  const info=new OAuthInfo({appId:CFG.appId,portalUrl:CFG.portal,popup:false,flowType:"auto"});
+  IM.registerOAuthInfos([info]);
+  IM.checkSignInStatus(CFG.portal+"/sharing").then(start).catch(()=>{
+    $("login").style.display="flex";
+    $("lgb").onclick=()=>IM.getCredential(CFG.portal+"/sharing");
+  });
+
+  async function q(id,params){
+    const r=await esriRequest(CFG.svc+"/"+id+"/query",{query:Object.assign({where:"1=1",outFields:"*",returnGeometry:false,f:"json"},params)});
+    return r.data.features.map(f=>f.attributes);
+  }
+
+  async function start(cred){
+    $("login").style.display="none";
+    $("who").textContent="Santiago de Veraguas · "+cred.userId;
+    const wm=new WebMap({portalItem:{id:CFG.webmap}});
+    const view=new MapView({container:"map",map:wm,popupEnabled:true,popup:{dockEnabled:false,dockOptions:{buttonEnabled:true,breakpoint:false}}});
+    ST.view=view; ST.map=wm;
+    const [rows,cots,cdet,apu]=await Promise.all([
+      q(2,{orderByFields:"OBJECTID"}),q(6),q(7),
+      fetch("apu_cgr.json").then(r=>r.json()).catch(()=>({}))]);
+    ST.rows=rows; ST.apu=apu; ST.cdet=cdet;
+    cots.forEach(c=>{ if(!ST.cot[c.CODIGO]) ST.cot[c.CODIGO]=c; });
+    // imágenes de cotizaciones: adjuntos de Sectores
+    try{
+      const att=await esriRequest(CFG.svc+"/1/queryAttachments",{query:{definitionExpression:"1=1",returnUrl:true,f:"json"}});
+      (att.data.attachmentGroups||[]).forEach(g=>(g.attachmentInfos||[]).forEach(a=>{
+        const code=(a.name||"").split(" ")[0];
+        if(!ST.img[code]) ST.img[code]=[];
+        const tk=(IM.findCredential(CFG.svc)||{}).token;
+        if(!ST.img[code].some(x=>x.name===a.name)) ST.img[code].push({name:a.name,url:a.url+(tk?(a.url.includes("?")?"&":"?")+"token="+tk:"")});
+      }));
+    }catch(e){console.warn("adjuntos",e)}
+    buildFilters(); render();
+    await wm.load();
+    styleLayers(wm);
+    view.on("click",async ev=>{
+      const ht=await view.hitTest(ev);
+      let sec=null,ak=null;
+      ht.results.forEach(r=>{const a=r.graphic&&r.graphic.attributes; if(!a)return;
+        if(r.layer&&r.layer.title==="Locales AK"&&a.AK){ak=a.AK; sec=a.SECTOR;}
+        else if(a.SECTOR&&!sec) sec=a.SECTOR;});
+      if(sec&&ST.rows.some(x=>x.SECTOR===sec)){ ST.sector=sec; ST.ak=ak; buildFilters(); render(); openPanel(true); }
+    });
+  }
+
+  function styleLayers(wm){
+    wm.allLayers.forEach(l=>{
+      if(l.type==="feature") l.outFields=["*"];
+      if(l.title==="Locales AK"){
+        l.labelingInfo=Object.keys(AKC).map(ak=>({where:"AK = '"+ak+"'",labelExpressionInfo:{expression:"$feature.ETIQUETA"},labelPlacement:"above-center",
+          symbol:{type:"text",color:"white",backgroundColor:akColor(ak),borderLineColor:"white",borderLineSize:1,haloSize:0,font:{size:9,weight:"bold",family:"Arial"}},deconflictionStrategy:"static"}));
+        ST.locales=l;
+      }
+      if(l.title==="Sectores"){
+        l.labelingInfo=[
+          {where:"TC_TOTAL > 0",labelExpressionInfo:{expression:'$feature.SECTOR + TextFormatting.NewLine + "B/." + Text($feature.TC_TOTAL,"#,##0.00")'},labelPlacement:"always-horizontal",
+           symbol:{type:"text",color:"#1e3a5f",backgroundColor:[250,204,21,0.95],borderLineColor:"#1e3a5f",borderLineSize:1,font:{size:10,weight:"bold",family:"Arial"}},deconflictionStrategy:"none"},
+          {where:"TC_TOTAL = 0 OR TC_TOTAL IS NULL",labelExpressionInfo:{expression:"$feature.SECTOR"},labelPlacement:"always-horizontal",minScale:2500,
+           symbol:{type:"text",color:[255,255,255,0.85],haloColor:[0,0,0,0.6],haloSize:1,font:{size:8,family:"Arial"}}}];
+      }
+    });
+  }
+
+  // ---------- filtros ----------
+  function pills(el,opts,cur,cb,cls){
+    el.innerHTML="";
+    opts.forEach(([v,t,col])=>{const b=document.createElement("button");b.className="pill"+(cls?" "+cls:"")+(v===cur?" on":"");b.textContent=t;
+      if(col){b.style.borderColor=col; if(v===cur){b.style.background=col;b.style.color="#fff"} else b.style.color=col;}
+      b.onclick=()=>cb(v);el.appendChild(b);});
+  }
+  function buildFilters(){
+    const secs=[...new Set(ST.rows.map(r=>r.SECTOR))];
+    pills($("secs"),[[null,"Todos"],...secs.map(s=>[s,s])],ST.sector,v=>{ST.sector=v;ST.ak=null;buildFilters();render();zoomSector(v)});
+    pills($("ff"),[["all","Todas"],["cgr","Contraloría"],["cot","Con cotización"],["pen","Sin cotización"]],ST.fuente,v=>{ST.fuente=v;buildFilters();render()});
+    const items=[...new Set(ST.rows.map(r=>r.ITEM))].sort();
+    pills($("fi"),[["all","Todos"],...items.map(i=>[i,i])],ST.item,v=>{ST.item=v;buildFilters();render()});
+    const aks=[...new Set(ST.rows.filter(r=>!ST.sector||r.SECTOR===ST.sector).map(r=>r.AK))].sort();
+    $("aks").innerHTML='<span class="lbl">Local</span>';
+    const box=document.createElement("span");$("aks").appendChild(box);
+    pills(box,[[null,"Todos"],...aks.map(a=>[a,a,akColor(a)])],ST.ak,v=>{ST.ak=v;buildFilters();render();if(v)zoomAK(v)},"ak");
+  }
+  const fuenteOK=r=>ST.fuente==="all"||(ST.fuente==="cgr"&&r.PAG_CGR)||(ST.fuente==="cot"&&r.COTIZACION)||(ST.fuente==="pen"&&r.TIPO_PRECIO==="Buscar precio"&&!r.COTIZACION);
+  function filtered(){
+    const q=ST.q.toLowerCase();
+    return ST.rows.filter(r=>(!ST.sector||r.SECTOR===ST.sector)&&(!ST.ak||r.AK===ST.ak)&&(ST.item==="all"||r.ITEM===ST.item)&&fuenteOK(r)&&
+      (!q||[r.ACTIVIDAD,r.DESCRIPCION,r.ELEMENTO,r.COTIZACION,r.AK,r.COD].join(" ").toLowerCase().includes(q)));
+  }
+
+  // ---------- árbol ----------
+  function group(rows,key){const m=new Map();rows.forEach(r=>{const k=r[key]||"(sin dato)";if(!m.has(k))m.set(k,[]);m.get(k).push(r)});return m}
+  const sum=rs=>rs.reduce((t,r)=>t+(r.TC||0),0);
+  function node(id,lvl,label,val,extra){
+    const op=ST.open.has(id);
+    return `<div class="n l${lvl}${op?" op":""}" data-id="${esc(id)}"><span class="car">▶</span><span class="t">${label}</span>${extra||""}<span class="v">B/.${f2(val)}</span></div>`;
+  }
+  function render(){
+    const rows=filtered();
+    $("totl").textContent=(ST.sector||"Todos los sectores")+(ST.ak?" · "+ST.ak:"")+" · "+rows.length+" partidas";
+    $("totv").textContent="B/."+f2(sum(rows));
+    if(!rows.length){$("tree").innerHTML='<div class="empty">Sin partidas con estos filtros.</div>';return}
+    let h="";
+    const multiSec=!ST.sector&&new Set(rows.map(r=>r.SECTOR)).size>1;
+    const top=multiSec?group(rows,"SECTOR"):new Map([["",rows]]);
+    for(const [sec,rs0] of top){
+      const p0=sec?"S:"+sec:"S:";
+      if(sec){h+=node(p0,0,esc(sec),sum(rs0)); if(!ST.open.has(p0))continue;}
+      const els=[...group(rs0,"ELEMENTO")].sort((a,b)=>sum(b[1])-sum(a[1]));
+      for(const [el,rs1] of els){
+        const id1=p0+"|E:"+el; h+=node(id1,sec?1:0,esc(el),sum(rs1)); if(!ST.open.has(id1))continue;
+        for(const [it,rs2] of [...group(rs1,"ITEM")].sort((a,b)=>sum(b[1])-sum(a[1]))){
+          const id2=id1+"|I:"+it; h+=node(id2,sec?2:1,esc(it),sum(rs2)); if(!ST.open.has(id2))continue;
+          for(const [ak,rs3] of [...group(rs2,"AK")].sort((a,b)=>sum(b[1])-sum(a[1]))){
+            const id3=id2+"|A:"+ak; h+=node(id3,sec?3:2,`<span class="akb" style="background:${akColor(ak)}">${esc(ak)}</span>`,sum(rs3)); if(!ST.open.has(id3))continue;
+            for(const [ac,rs4] of [...group(rs3,"ACTIVIDAD")].sort((a,b)=>sum(b[1])-sum(a[1]))){
+              const id4=id3+"|C:"+ac; h+=node(id4,3,esc(ac),sum(rs4)); if(!ST.open.has(id4))continue;
+              rs4.forEach(r=>{h+=partida(r)});
+            }
+          }
+        }
+      }
+    }
+    $("tree").innerHTML=h;
+  }
+  function partida(r){
+    const id="P:"+r.OBJECTID, op=ST.open.has(id);
+    const sub=Math.round((r.CANT||0)*(r.UR||0)*100)/100, itb=(r.TC||0)-sub;
+    let tags="";
+    if(r.PAG_CGR) tags+=`<span class="tag cgr">p.${r.PAG_CGR}</span> `;
+    if(r.COTIZACION) tags+=r.COTIZACION.split(",").map(c=>`<span class="tag cot">${esc(c.trim())}</span>`).join(" ");
+    if(!r.PAG_CGR&&!r.COTIZACION&&r.TIPO_PRECIO==="Buscar precio") tags+=`<span class="tag pen">sin cotización</span>`;
+    let h=`<div class="pt" data-id="${id}"><div class="d">${esc(r.DESCRIPCION||r.ACTIVIDAD)} ${tags}</div>
+      <div class="m">${f3(r.CANT)} ${esc(r.UNIDAD||"")}</div><div class="m s" title="UR">${r.UR!=null?f2(r.UR):"—"}</div>
+      <div class="m i" title="Subtotal + ITBMS">${f2(sub)} + ${f2(itb)}</div><div class="m tc">B/.${f2(r.TC)}</div></div>`;
+    if(op) h+=detalle(r);
+    return h;
+  }
+  function detalle(r){
+    let h="";
+    if(r.PAG_CGR){
+      const a=ST.apu[String(r.PAG_CGR)];
+      if(a){
+        h+=`<div class="det"><div class="dh"><div class="k">CGR pág. ${a.pagina} · análisis de precio unitario</div><div class="ti">${esc(a.titulo)}</div><div class="su">Unidad: ${esc(a.unidad)} · C.U.: B/.${f2(a.costo_unitario)}</div></div>`;
+        for(const [sn,sv] of Object.entries(a.secciones||{})){
+          h+=`<div class="sec">${esc(sn.toUpperCase())} · B/.${f2(sv.total)}</div><table class="apu"><tr><th>Descripción</th><th>Ud.</th><th>Rend.</th><th>Cant.</th><th>C.U.</th><th>Total</th></tr>`;
+          (sv.items||[]).forEach(i=>{h+=`<tr><td class="ds">${esc(i.desc)} <span style="color:#94a3b8;font-family:var(--mono);font-size:10px">${esc(i.clave||"")}</span></td><td>${esc(i.unidad||"")}</td><td>${f3(i.rendimiento)}</td><td>${f3(i.cantidad)}</td><td>${f2(i.cu)}</td><td>${f2(i.total)}</td></tr>`});
+          h+="</table>";
+        }
+        h+=lnk("CGR","Ver base CGR (PDF)")+"</div>";
+      } else h+=`<div class="det"><div class="dh"><div class="k">CGR pág. ${r.PAG_CGR}</div><div class="su">Análisis de precio no cargado para esta página.</div></div>${lnk("CGR","Ver base CGR (PDF)")}</div>`;
+    }
+    if(r.COTIZACION){
+      r.COTIZACION.split(",").map(c=>c.trim()).filter(Boolean).forEach(code=>{
+        const c=ST.cot[code]||{};
+        h+=`<div class="det cotz"><div class="dh" style="background:#14532d"><div class="k" style="color:#bbf7d0">Cotización ${esc(code)}</div><div class="ti">${esc(c.PROVEEDOR||"")}${c.NUMERO?" · "+esc(c.NUMERO):""}</div><div class="su">${esc(c.FECHA||"")}${c.DESCRIPCION?" · "+esc(c.DESCRIPCION):""}</div></div>`;
+        ST.cdet.filter(d=>d.CODIGO===code&&d.ELEMENTO===r.ELEMENTO&&(d.ACTIVIDAD||"").trim().toUpperCase()===(r.ACTIVIDAD||"").trim().toUpperCase())
+          .forEach(d=>{h+=`<div class="cline"><span>${esc(d.DESCRIPCION)}</span><span class="p">B/.${f2(d.PU)} / ${esc(d.UNIDAD)}</span></div>`});
+        const ims=ST.img[code]||[];
+        if(ims.length) h+='<div class="thumbs">'+ims.map(i=>`<img src="${esc(i.url)}" data-cap="${esc(code+" · "+(c.PROVEEDOR||""))}" alt="${esc(i.name)}">`).join("")+"</div>";
+        h+=lnk(code,"Ver PDF de la cotización")+"</div>";
+      });
+    }
+    if(!h) h=`<div class="det" style="border-left-color:#dc2626"><div class="dh" style="background:#7f1d1d"><div class="k" style="color:#fecaca">Sin respaldo de precio</div><div class="su">Fuente: ${esc(r.TIPO_PRECIO||"—")}. Falta asignar cotización o página CGR.</div></div></div>`;
+    return h;
+  }
+  function lnk(code,t){const c=ST.cot[code];return c&&c.URL?`<a class="lnk" href="${esc(c.URL)}" target="_blank">${t} ↗</a>`:""}
+
+  // ---------- eventos ----------
+  $("tree").addEventListener("click",ev=>{
+    const im=ev.target.closest(".thumbs img");
+    if(im){ $("lbi").src=im.src; $("lbc").textContent=im.dataset.cap; $("lb").style.display="flex"; return; }
+    if(ev.target.closest("a"))return;
+    const n=ev.target.closest("[data-id]"); if(!n)return;
+    const id=n.dataset.id; ST.open.has(id)?ST.open.delete(id):ST.open.add(id);
+    const m=id.match(/\|A:([^|]+)$/); if(m&&ST.open.has(id)) zoomAK(m[1]);
+    render();
+  });
+  $("lb").onclick=()=>{$("lb").style.display="none"};
+  $("q").oninput=e=>{ST.q=e.target.value;render()};
+  $("ex").onclick=()=>{ // abre hasta nivel actividad
+    filtered().forEach(r=>{const multi=!ST.sector&&new Set(ST.rows.map(x=>x.SECTOR)).size>1;const p0=multi?"S:"+r.SECTOR:"S:";
+      const a=[p0,p0+"|E:"+r.ELEMENTO]; a.push(a[1]+"|I:"+r.ITEM); a.push(a[2]+"|A:"+r.AK); a.push(a[3]+"|C:"+r.ACTIVIDAD); a.forEach(x=>ST.open.add(x));});
+    render();};
+  $("co").onclick=()=>{ST.open.clear();render()};
+  function openPanel(v){document.body.classList.toggle("open",v);$("tgl").textContent=v?"Presupuesto ◂":"Presupuesto ▸";$("hint").style.display=v?"none":"block"}
+  $("tgl").onclick=()=>openPanel(!document.body.classList.contains("open"));
+
+  async function zoomAK(ak){
+    if(!ST.locales||!ST.view)return;
+    const r=await ST.locales.queryFeatures({where:"AK = '"+ak.replace(/'/g,"''")+"'",returnGeometry:true,outFields:["AK"]});
+    if(r.features.length) ST.view.goTo({target:r.features[0].geometry,zoom:20},{duration:600});
+  }
+  async function zoomSector(s){
+    const lay=ST.map&&ST.map.allLayers.find(l=>l.title==="Sectores"); if(!lay)return;
+    if(!s){ ST.view.goTo(ST.map.initialViewProperties&&ST.map.initialViewProperties.viewpoint||lay.fullExtent); return; }
+    const r=await lay.queryFeatures({where:"SECTOR = '"+s+"'",returnGeometry:true});
+    if(r.features.length) ST.view.goTo(r.features[0].geometry.extent.expand(1.6),{duration:600});
+  }
+});
+</script>
+</body>
+</html>
