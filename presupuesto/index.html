@@ -205,11 +205,15 @@ function(OAuthInfo,IM,WebMap,MapView,esriRequest,esriConfig){
         ST.locales=l;
       }
       if(l.title==="Sectores"){
-        l.labelingInfo=[
-          {where:"TC_TOTAL > 0",labelExpressionInfo:{expression:'$feature.SECTOR + TextFormatting.NewLine + "B/." + Text($feature.TC_TOTAL,"#,##0.00")'},labelPlacement:"always-horizontal",
-           symbol:{type:"text",color:"#1e3a5f",backgroundColor:[250,204,21,0.95],borderLineColor:"#1e3a5f",borderLineSize:1,font:{size:10,weight:"bold",family:"Arial"}},deconflictionStrategy:"none",maxScale:1800},
-          {where:"TC_TOTAL = 0 OR TC_TOTAL IS NULL",labelExpressionInfo:{expression:"$feature.SECTOR"},labelPlacement:"always-horizontal",minScale:2500,maxScale:1800,
-           symbol:{type:"text",color:[255,255,255,0.85],haloColor:[0,0,0,0.6],haloSize:1,font:{size:8,family:"Arial"}}}];
+        // etiqueta del sector desplazada al sur (sectores SUR) o al norte (NORTE) para no tapar los locales
+        const lc=[];
+        [["SUR",-34],["NORTE",34]].forEach(([lado,dy])=>{
+          lc.push({where:"TC_TOTAL > 0 AND SECTOR LIKE '%"+lado+"'",labelExpressionInfo:{expression:'$feature.SECTOR + TextFormatting.NewLine + "B/." + Text($feature.TC_TOTAL,"#,##0.00")'},labelPlacement:"always-horizontal",
+            symbol:{type:"text",color:"#1e3a5f",backgroundColor:[250,204,21,0.95],borderLineColor:"#1e3a5f",borderLineSize:1,yoffset:dy,font:{size:10,weight:"bold",family:"Arial"}},deconflictionStrategy:"none"});
+          lc.push({where:"(TC_TOTAL = 0 OR TC_TOTAL IS NULL) AND SECTOR LIKE '%"+lado+"'",labelExpressionInfo:{expression:"$feature.SECTOR"},labelPlacement:"always-horizontal",minScale:2500,
+            symbol:{type:"text",color:[255,255,255,0.85],haloColor:[0,0,0,0.6],haloSize:1,yoffset:dy/2,font:{size:8,family:"Arial"}}});
+        });
+        l.labelingInfo=lc;
       }
     });
   }
