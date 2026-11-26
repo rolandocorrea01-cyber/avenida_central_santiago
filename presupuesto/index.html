@@ -82,6 +82,16 @@ table.apu td.ds{font-family:inherit;text-align:left}
 #login{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:40}
 #login .card{background:#fff;border-radius:12px;padding:28px;max-width:360px;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.12)}
 #login button{margin-top:14px;background:var(--navy);color:#fff;border:0;border-radius:8px;padding:10px 18px;font-weight:700;cursor:pointer}
+.fx{margin:8px 10px;background:#0f172a;color:#e2e8f0;border-radius:10px;overflow:hidden}
+.fx .fh{display:flex;align-items:center;gap:8px;padding:10px 12px;background:linear-gradient(#1e3a5f,#17304f);cursor:pointer}
+.fx .dot{width:11px;height:11px;border-radius:50%;flex:none}
+.fx .nm{font-weight:800;font-size:14px;color:#fff}
+.fx .tv{font-family:var(--mono);font-weight:800;color:#7dd3fc;font-size:13.5px}
+.fx .sc{font-size:10.5px;color:#93c5fd;margin-left:auto;white-space:nowrap}
+.fx .car2{color:#93c5fd;font-size:10px;transition:transform .15s}.fx.op .car2{transform:rotate(90deg)}
+.fx .gh{font-size:10.5px;font-weight:800;letter-spacing:.08em;color:#64748b;padding:10px 12px 4px;border-bottom:1px solid #1e293b}
+.fx .gr{display:flex;justify-content:space-between;gap:10px;padding:6px 12px;border-bottom:1px solid #1e293b;font-size:12.5px}
+.fx .gr b{font-family:var(--mono);color:#7dd3fc;white-space:nowrap}
 #hint{position:fixed;left:12px;bottom:28px;z-index:12;background:rgba(30,58,95,.92);color:#fff;font-size:12px;padding:7px 10px;border-radius:8px;max-width:70vw}
 @media (max-width:760px){
   :root{--panelW:100vw}
@@ -151,11 +161,12 @@ function(OAuthInfo,IM,WebMap,MapView,esriRequest,esriConfig){
     $("login").style.display="none";
     $("who").textContent="Santiago de Veraguas · "+cred.userId;
     const wm=new WebMap({portalItem:{id:CFG.webmap}});
-    const view=new MapView({container:"map",map:wm,popupEnabled:true,popup:{dockEnabled:false,dockOptions:{buttonEnabled:true,breakpoint:false}}});
+    const view=new MapView({container:"map",map:wm,popupEnabled:false,popup:{dockEnabled:false,dockOptions:{buttonEnabled:true,breakpoint:false}}});
     ST.view=view; ST.map=wm;
-    const [rows,cots,cdet,apu]=await Promise.all([
+    const [rows,cots,cdet,apu,cant]=await Promise.all([
       q(2,{orderByFields:"OBJECTID"}),q(6),q(7),
-      fetch("apu_cgr.json").then(r=>r.json()).catch(()=>({}))]);
+      fetch("apu_cgr.json").then(r=>r.json()).catch(()=>({})),q(5,{orderByFields:"ORDEN"}).catch(()=>[])]);
+    ST.cant=cant;
     ST.rows=rows; ST.apu=apu; ST.cdet=cdet;
     cots.forEach(c=>{ if(!ST.cot[c.CODIGO]) ST.cot[c.CODIGO]=c; });
     // imágenes de cotizaciones: adjuntos de Sectores
@@ -241,8 +252,8 @@ function(OAuthInfo,IM,WebMap,MapView,esriRequest,esriConfig){
     const rows=filtered();
     $("totl").textContent=(ST.sector||"Todos los sectores")+(ST.ak?" · "+ST.ak:"")+" · "+rows.length+" partidas";
     $("totv").textContent="B/."+f2(sum(rows));
-    if(!rows.length){$("tree").innerHTML='<div class="empty">Sin partidas con estos filtros.</div>';return}
-    let h="";
+    let h=fichas();
+    if(!rows.length){$("tree").innerHTML=h+'<div class="empty">Sin partidas con estos filtros.</div>';return}
     const multiSec=!ST.sector&&new Set(rows.map(r=>r.SECTOR)).size>1;
     const top=multiSec?group(rows,"SECTOR"):new Map([["",rows]]);
     for(const [sec,rs0] of top){
@@ -264,6 +275,28 @@ function(OAuthInfo,IM,WebMap,MapView,esriRequest,esriConfig){
       }
     }
     $("tree").innerHTML=h;
+  }
+  const tcase=t=>String(t||"").toLowerCase().replace(/^./,c=>c.toUpperCase()).replace(/\b(psi|mm)\b/g,m=>m.toUpperCase());
+  const uni=u=>String(u||"").replace("m2","m²").replace("m3","m³");
+  function fichas(){
+    if(!ST.sector) return "";
+    const aks=ST.ak?[ST.ak]:[...new Set([...ST.rows.filter(r=>r.SECTOR===ST.sector).map(r=>r.AK),...(ST.cant||[]).filter(c=>c.SECTOR===ST.sector).map(c=>c.AK)])]
+      .sort((a,b)=>sum(ST.rows.filter(r=>r.SECTOR===ST.sector&&r.AK===b))-sum(ST.rows.filter(r=>r.SECTOR===ST.sector&&r.AK===a)));
+    return aks.map(ak=>{
+      const id="F:"+ST.sector+"|"+ak, op=ST.ak?!ST.open.has("X"+id):ST.open.has(id);
+      const rs=ST.rows.filter(r=>r.SECTOR===ST.sector&&r.AK===ak);
+      let h=`<div class="fx${op?" op":""}"><div class="fh" data-id="${esc(ST.ak?"X"+id:id)}"><span class="dot" style="background:${akColor(ak)}"></span><span class="nm">${esc(ak)}</span><span class="tv">B/.${f2(sum(rs))}</span><span class="sc">${esc(ST.sector)}</span><span class="car2">▶</span></div>`;
+      if(!op) return h+"</div>";
+      const mat=new Map();
+      rs.filter(r=>r.ITEM==="MATERIALES"&&/^m[23]?$/.test(r.UNIDAD||"")&&!/transporte/i.test(r.ACTIVIDAD||"")).forEach(r=>{
+        const k=tcase(r.ACTIVIDAD)+"|"+r.UNIDAD; mat.set(k,(mat.get(k)||0)+(r.CANT||0));});
+      const cs=(ST.cant||[]).filter(c=>c.SECTOR===ST.sector&&c.AK===ak);
+      const sec=(t,list)=>list.length?`<div class="gh">${t}</div>`+list.map(([n,v])=>`<div class="gr"><span>${esc(n)}</span><b>${v}</b></div>`).join(""):"";
+      h+=sec("ÁREAS",cs.filter(c=>c.GRUPO!=="Elementos urbanos").map(c=>[c.NOMBRE,f2(c.CANTIDAD)+" "+uni(c.UNIDAD)]));
+      h+=sec("MATERIALES",[...mat].map(([k,v])=>{const [n,u]=k.split("|");return [n,f2(v)+" "+uni(u)]}));
+      h+=sec("ELEMENTOS URBANOS",cs.filter(c=>c.GRUPO==="Elementos urbanos").map(c=>[c.NOMBRE,f3(c.CANTIDAD)+" "+esc(c.UNIDAD)]));
+      return h+"</div>";
+    }).join("");
   }
   function partida(r){
     const id="P:"+r.OBJECTID, op=ST.open.has(id);
