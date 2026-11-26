@@ -29,6 +29,8 @@ body.open #panel{transform:none}
 #tot{display:flex;justify-content:space-between;align-items:baseline;background:var(--navy);color:#fff;border-radius:8px;padding:8px 12px;margin:2px 0 6px}
 #tot b{font-family:var(--mono);font-size:17px}
 #tot span{font-size:11px;color:#cbd5e1}
+#filt{margin:2px 0 6px}#filt summary{font-size:11px;font-weight:700;color:var(--navy);cursor:pointer;padding:2px 0}#filt summary span{color:#b45309}
+#ph .row span .pill{margin:0 4px 4px 0}
 #tools{display:flex;gap:6px;align-items:center}
 #tools input{flex:1;border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:12px}
 .sbtn{border:1px solid var(--line);background:#fff;border-radius:6px;padding:6px 8px;font-size:11px;font-weight:600;cursor:pointer;color:var(--navy)}
@@ -104,9 +106,11 @@ table.apu td.ds{font-family:inherit;text-align:left}
   <div id="ph">
     <div class="row" id="secs"></div>
     <div id="tot"><span id="totl">Todos los sectores</span><b id="totv">—</b></div>
-    <div class="row"><span class="lbl">Fuente</span><span id="ff"></span></div>
-    <div class="row"><span class="lbl">Ítem</span><span id="fi"></span></div>
     <div class="row" id="aks"></div>
+    <details id="filt"><summary>Más filtros <span id="fsum"></span></summary>
+      <div class="row"><span class="lbl">Fuente</span><span id="ff"></span></div>
+      <div class="row"><span class="lbl">Ítem</span><span id="fi"></span></div>
+    </details>
     <div id="tools"><input id="q" placeholder="Buscar actividad, descripción, código…"><button class="sbtn" id="ex">Expandir todo</button><button class="sbtn" id="co">Colapsar</button></div>
   </div>
   <div id="tree"><div class="empty">Cargando…</div></div>
@@ -210,6 +214,8 @@ function(OAuthInfo,IM,WebMap,MapView,esriRequest,esriConfig){
     pills($("ff"),[["all","Todas"],["cgr","Contraloría"],["cot","Con cotización"],["pen","Sin cotización"]],ST.fuente,v=>{ST.fuente=v;buildFilters();render()});
     const items=[...new Set(ST.rows.map(r=>r.ITEM))].sort();
     pills($("fi"),[["all","Todos"],...items.map(i=>[i,i])],ST.item,v=>{ST.item=v;buildFilters();render()});
+    const act=[ST.fuente!=="all"?{cgr:"Contraloría",cot:"Con cotización",pen:"Sin cotización"}[ST.fuente]:null,ST.item!=="all"?ST.item:null].filter(Boolean);
+    $("fsum").textContent=act.length?"· "+act.join(" · "):"";
     const aks=[...new Set(ST.rows.filter(r=>!ST.sector||r.SECTOR===ST.sector).map(r=>r.AK))].sort();
     $("aks").innerHTML='<span class="lbl">Local</span>';
     const box=document.createElement("span");$("aks").appendChild(box);
