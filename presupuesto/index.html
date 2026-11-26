@@ -165,12 +165,16 @@ function(OAuthInfo,IM,WebMap,MapView,esriRequest,esriConfig){
     buildFilters(); render();
     await wm.load();
     styleLayers(wm);
+    try{ const sl=wm.allLayers.find(l=>l.title==="Sectores"); await view.when();
+      const ex=await sl.queryExtent({where:"TC_TOTAL > 0"}); if(ex.extent) view.goTo(ex.extent.expand(1.3)); }catch(e){}
     view.on("click",async ev=>{
       const ht=await view.hitTest(ev);
       let sec=null,ak=null;
+      const aks=new Set();
       ht.results.forEach(r=>{const a=r.graphic&&r.graphic.attributes; if(!a)return;
-        if(r.layer&&r.layer.title==="Locales AK"&&a.AK){ak=a.AK; sec=a.SECTOR;}
+        if(r.layer&&r.layer.title==="Locales AK"&&a.AK){aks.add(a.AK); sec=sec||a.SECTOR;}
         else if(a.SECTOR&&!sec) sec=a.SECTOR;});
+      if(aks.size===1) ak=[...aks][0];
       if(sec&&ST.rows.some(x=>x.SECTOR===sec)){ ST.sector=sec; ST.ak=ak; buildFilters(); render(); openPanel(true); }
     });
   }
@@ -180,7 +184,7 @@ function(OAuthInfo,IM,WebMap,MapView,esriRequest,esriConfig){
       if(l.type==="feature") l.outFields=["*"];
       if(l.title==="Locales AK"){
         l.labelingInfo=Object.keys(AKC).map(ak=>({where:"AK = '"+ak+"'",labelExpressionInfo:{expression:"$feature.ETIQUETA"},labelPlacement:"above-center",
-          symbol:{type:"text",color:"white",backgroundColor:akColor(ak),borderLineColor:"white",borderLineSize:1,haloSize:0,font:{size:9,weight:"bold",family:"Arial"}},deconflictionStrategy:"static"}));
+          symbol:{type:"text",color:"white",backgroundColor:akColor(ak),borderLineColor:"white",borderLineSize:1,haloSize:0,font:{size:9,weight:"bold",family:"Arial"}},deconflictionStrategy:"static",minScale:1800}));
         ST.locales=l;
       }
       if(l.title==="Sectores"){
