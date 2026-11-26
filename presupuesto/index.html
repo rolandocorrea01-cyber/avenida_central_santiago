@@ -93,9 +93,22 @@ table.apu td.ds{font-family:inherit;text-align:left}
 .fx .tv{font-family:var(--mono);font-weight:800;color:#7dd3fc;font-size:13.5px}
 .fx .sc{font-size:10.5px;color:#93c5fd;margin-left:auto;white-space:nowrap}
 .fx .car2{color:#93c5fd;font-size:10px;transition:transform .15s}.fx.op .car2{transform:rotate(90deg)}
-.fx .gh{font-size:10.5px;font-weight:800;letter-spacing:.08em;color:#64748b;padding:10px 12px 4px;border-bottom:1px solid #1e293b}
-.fx .gr{display:flex;justify-content:space-between;gap:10px;padding:6px 12px;border-bottom:1px solid #1e293b;font-size:12.5px}
-.fx .gr b{font-family:var(--mono);color:#7dd3fc;white-space:nowrap}
+.fx .gh{display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:800;letter-spacing:.08em;padding:10px 12px 5px;border-bottom:1px solid #1e293b}
+.fx .gh i{font-style:normal;font-size:12px}.fx .gh em{font-style:normal;margin-left:auto;font-weight:600;letter-spacing:0;color:#64748b}
+.fx .gr{display:flex;justify-content:space-between;gap:10px;padding:6px 12px 6px 10px;border-bottom:1px solid #1e293b;font-size:12.5px;border-left:3px solid transparent}
+.fx .gr b{font-family:var(--mono);white-space:nowrap}
+.fx .ar .gh{color:#38bdf8}.fx .ar .gr{border-left-color:#0ea5e9}.fx .ar .gr b{color:#7dd3fc}
+.fx .mt .gh{color:#fbbf24}.fx .mt .gr{border-left-color:#d97706}.fx .mt .gr b{color:#fcd34d}
+.fx .eu{background:#052e2b}.fx .eu .gh{color:#4ade80;border-bottom-color:#134e4a}.fx .eu .gr{border-left-color:#22c55e;border-bottom-color:#134e4a}.fx .eu .gr b{color:#86efac}
+#pop{position:fixed;z-index:14;width:340px;max-width:calc(100vw - 20px);display:none;filter:drop-shadow(0 6px 18px rgba(0,0,0,.45))}
+#pop .pin{background:#0f172a;border-radius:10px;max-height:min(70vh,560px);overflow:auto}
+#pop .fx{margin:0;border-radius:0}
+#pop .x{position:absolute;top:-10px;right:-10px;width:26px;height:26px;border-radius:50%;background:#fff;color:#0f172a;border:0;font-size:17px;font-weight:800;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.4);z-index:2}
+#pop .ph{padding:10px 12px;background:#1e3a5f;color:#fff;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+#pop .ph b{font-family:var(--mono);color:#fde047}
+#pop .pf{position:sticky;bottom:0;padding:8px;background:#0f172a;border-top:1px solid #1e293b}
+#pop .pf button{width:100%;background:var(--gold);color:var(--navy);border:0;border-radius:7px;padding:8px;font-weight:800;font-size:12px;cursor:pointer}
+@media (max-width:760px){#pop{left:10px!important;right:10px;top:auto!important;bottom:14px;width:auto}}
 #hint{position:fixed;left:12px;bottom:28px;z-index:12;background:rgba(30,58,95,.92);color:#fff;font-size:12px;padding:7px 10px;border-radius:8px;max-width:70vw}
 @media (max-width:760px){
   :root{--panelW:100vw}
@@ -131,6 +144,7 @@ table.apu td.ds{font-family:inherit;text-align:left}
   </div>
   <div id="tree"><div class="empty">Cargando…</div></div>
 </aside>
+<div id="pop"><button class="x" id="popx">×</button><div class="pin" id="popc"></div></div>
 <div id="lb"><span class="x" id="lbx">×</span><img id="lbi" alt=""><div class="cap" id="lbc"></div></div>
 <div id="login" style="display:none"><div class="card"><div style="font-size:15px;font-weight:800;color:#1e3a5f">Avenida Central · Presupuesto</div><p style="font-size:13px;color:#475569">Los datos son privados. Inicie sesión con su cuenta de ArcGIS de la Alcaldía.</p><button id="lgb">Iniciar sesión</button></div></div>
 <script src="https://js.arcgis.com/4.31/"></script>
@@ -186,6 +200,7 @@ function(OAuthInfo,IM,WebMap,MapView,esriRequest,esriConfig){
     buildFilters(); render();
     await wm.load();
     styleLayers(wm);
+    view.watch(["extent"],()=>placePop());
     try{ const sl=wm.allLayers.find(l=>l.title==="Sectores"); await view.when();
       const ex=await sl.queryExtent({where:"TC_TOTAL > 0"}); if(ex.extent) view.goTo(ex.extent.expand(1.3)); }catch(e){}
     view.on("click",async ev=>{
@@ -196,7 +211,7 @@ function(OAuthInfo,IM,WebMap,MapView,esriRequest,esriConfig){
         if(r.layer&&r.layer.title==="Locales AK"&&a.AK){aks.add(a.AK); sec=sec||a.SECTOR;}
         else if(a.SECTOR&&!sec) sec=a.SECTOR;});
       if(aks.size===1) ak=[...aks][0];
-      if(sec&&ST.rows.some(x=>x.SECTOR===sec)){ ST.sector=sec; ST.ak=ak; buildFilters(); render(); openPanel(true); }
+      if(sec&&(ST.rows.some(x=>x.SECTOR===sec)||(ST.cant||[]).some(x=>x.SECTOR===sec))){ ST.sector=sec; ST.ak=ak; buildFilters(); render(); showPop(sec,ak,ev.mapPoint); } else hidePop();
     });
   }
 
@@ -240,7 +255,7 @@ function(OAuthInfo,IM,WebMap,MapView,esriRequest,esriConfig){
     const aks=[...new Set(ST.rows.filter(r=>!ST.sector||r.SECTOR===ST.sector).map(r=>r.AK))].sort();
     $("aks").innerHTML='<span class="lbl">Local</span>';
     const box=document.createElement("span");$("aks").appendChild(box);
-    pills(box,[[null,"Todos"],...aks.map(a=>[a,a,akColor(a)])],ST.ak,v=>{ST.ak=v;buildFilters();render();if(v)zoomAK(v)},"ak");
+    pills(box,[[null,"Todos"],...aks.map(a=>[a,a,akColor(a)])],ST.ak,v=>{ST.ak=v;buildFilters();render();if(v)zoomAK(v,true);else if(ST.sector)hidePop()},"ak");
   }
   const fuenteOK=r=>ST.fuente==="all"||(ST.fuente==="cgr"&&r.PAG_CGR)||(ST.fuente==="cot"&&r.COTIZACION)||(ST.fuente==="pen"&&r.TIPO_PRECIO==="Buscar precio"&&!r.COTIZACION);
   function filtered(){
@@ -260,7 +275,7 @@ function(OAuthInfo,IM,WebMap,MapView,esriRequest,esriConfig){
     const rows=filtered();
     $("totl").textContent=(ST.sector||"Todos los sectores")+(ST.ak?" · "+ST.ak:"")+" · "+rows.length+" partidas";
     $("totv").textContent="B/."+f2(sum(rows));
-    let h=fichas();
+    let h="";
     if(!rows.length){$("tree").innerHTML=h+'<div class="empty">Sin partidas con estos filtros.</div>';return}
     const multiSec=!ST.sector&&new Set(rows.map(r=>r.SECTOR)).size>1;
     const top=multiSec?group(rows,"SECTOR"):new Map([["",rows]]);
@@ -286,26 +301,47 @@ function(OAuthInfo,IM,WebMap,MapView,esriRequest,esriConfig){
   }
   const tcase=t=>String(t||"").toLowerCase().replace(/^./,c=>c.toUpperCase()).replace(/\b(psi|mm)\b/g,m=>m.toUpperCase());
   const uni=u=>String(u||"").replace("m2","m²").replace("m3","m³");
-  function fichas(){
-    if(!ST.sector) return "";
-    const aks=ST.ak?[ST.ak]:[...new Set([...ST.rows.filter(r=>r.SECTOR===ST.sector).map(r=>r.AK),...(ST.cant||[]).filter(c=>c.SECTOR===ST.sector).map(c=>c.AK)])]
-      .sort((a,b)=>sum(ST.rows.filter(r=>r.SECTOR===ST.sector&&r.AK===b))-sum(ST.rows.filter(r=>r.SECTOR===ST.sector&&r.AK===a)));
-    return aks.map(ak=>{
-      const id="F:"+ST.sector+"|"+ak, op=ST.ak?!ST.open.has("X"+id):ST.open.has(id);
-      const rs=ST.rows.filter(r=>r.SECTOR===ST.sector&&r.AK===ak);
-      let h=`<div class="fx${op?" op":""}"><div class="fh" data-id="${esc(ST.ak?"X"+id:id)}"><span class="dot" style="background:${akColor(ak)}"></span><span class="nm">${esc(ak)}</span><span class="tv">B/.${f2(sum(rs))}</span><span class="sc">${esc(ST.sector)}</span><span class="car2">▶</span></div>`;
-      if(!op) return h+"</div>";
-      const mat=new Map();
-      rs.filter(r=>r.ITEM==="MATERIALES"&&/^m[23]?$/.test(r.UNIDAD||"")&&!/transporte/i.test(r.ACTIVIDAD||"")).forEach(r=>{
-        const k=tcase(r.ACTIVIDAD)+"|"+r.UNIDAD; mat.set(k,(mat.get(k)||0)+(r.CANT||0));});
-      const cs=(ST.cant||[]).filter(c=>c.SECTOR===ST.sector&&c.AK===ak);
-      const sec=(t,list)=>list.length?`<div class="gh">${t}</div>`+list.map(([n,v])=>`<div class="gr"><span>${esc(n)}</span><b>${v}</b></div>`).join(""):"";
-      h+=sec("ÁREAS",cs.filter(c=>c.GRUPO!=="Elementos urbanos").map(c=>[c.NOMBRE,f2(c.CANTIDAD)+" "+uni(c.UNIDAD)]));
-      h+=sec("MATERIALES",[...mat].map(([k,v])=>{const [n,u]=k.split("|");return [n,f2(v)+" "+uni(u)]}));
-      h+=sec("ELEMENTOS URBANOS",cs.filter(c=>c.GRUPO==="Elementos urbanos").map(c=>[c.NOMBRE,f3(c.CANTIDAD)+" "+esc(c.UNIDAD)]));
-      return h+"</div>";
-    }).join("");
+  function ficha(sec,ak,op,key){
+    const rs=ST.rows.filter(r=>r.SECTOR===sec&&r.AK===ak);
+    let h=`<div class="fx${op?" op":""}"><div class="fh" data-pk="${esc(key)}"><span class="dot" style="background:${akColor(ak)}"></span><span class="nm">${esc(ak)}</span><span class="tv">B/.${f2(sum(rs))}</span><span class="sc">${esc(sec)}</span><span class="car2">▶</span></div>`;
+    if(!op) return h+"</div>";
+    const mat=new Map();
+    rs.filter(r=>r.ITEM==="MATERIALES"&&/^m[23]?$/.test(r.UNIDAD||"")&&!/transporte/i.test(r.ACTIVIDAD||"")).forEach(r=>{
+      const k=tcase(r.ACTIVIDAD)+"|"+r.UNIDAD; mat.set(k,(mat.get(k)||0)+(r.CANT||0));});
+    const cs=(ST.cant||[]).filter(c=>c.SECTOR===sec&&c.AK===ak);
+    const blk=(cls,ic,t,sub,list)=>list.length?`<div class="${cls}"><div class="gh"><i>${ic}</i>${t}<em>${sub}</em></div>`+list.map(([n,v])=>`<div class="gr"><span>${esc(n)}</span><b>${v}</b></div>`).join("")+"</div>":"";
+    h+=blk("ar","📐","ÁREAS Y MEDIDAS","desglose del presupuesto",cs.filter(c=>c.GRUPO!=="Elementos urbanos").map(c=>[c.NOMBRE,f2(c.CANTIDAD)+" "+uni(c.UNIDAD)]));
+    h+=blk("mt","🧱","MATERIALES","cantidades",[...mat].map(([k,v])=>{const [n,u]=k.split("|");return [n,f2(v)+" "+uni(u)]}));
+    h+=blk("eu","🌳","ELEMENTOS URBANOS","unidades",cs.filter(c=>c.GRUPO==="Elementos urbanos").map(c=>[c.NOMBRE,f3(c.CANTIDAD)+" "+esc(c.UNIDAD)]));
+    return h+"</div>";
   }
+  const POP={sec:null,ak:null,pt:null,open:new Set()};
+  function popHTML(){
+    const sec=POP.sec;
+    if(POP.ak) return ficha(sec,POP.ak,true,"")+`<div class="pf"><button data-go="1">Ver presupuesto de ${esc(POP.ak)} ▾</button></div>`;
+    const aks=[...new Set([...ST.rows.filter(r=>r.SECTOR===sec).map(r=>r.AK),...(ST.cant||[]).filter(c=>c.SECTOR===sec).map(c=>c.AK)])]
+      .sort((a,b)=>sum(ST.rows.filter(r=>r.SECTOR===sec&&r.AK===b))-sum(ST.rows.filter(r=>r.SECTOR===sec&&r.AK===a)));
+    return `<div class="ph"><span>${esc(sec)} · ${aks.length} locales</span><b>B/.${f2(sum(ST.rows.filter(r=>r.SECTOR===sec)))}</b></div>`+
+      aks.map(a=>ficha(sec,a,POP.open.has(a),a)).join("")+`<div class="pf"><button data-go="1">Ver presupuesto del sector ▾</button></div>`;
+  }
+  function showPop(sec,ak,pt){POP.sec=sec;POP.ak=ak;POP.pt=pt;POP.open.clear();$("popc").innerHTML=popHTML();$("popc").scrollTop=0;$("pop").style.display="block";placePop();}
+  function hidePop(){$("pop").style.display="none";POP.pt=null}
+  function placePop(){
+    if(!POP.pt||$("pop").style.display==="none"||!ST.view)return;
+    const sp=ST.view.toScreen(POP.pt), mr=$("map").getBoundingClientRect(), el=$("pop");
+    const w=el.offsetWidth,h=el.offsetHeight;
+    let x=mr.left+sp.x+16, y=mr.top+sp.y-h/2;
+    if(x+w>mr.right-8) x=mr.left+sp.x-w-16;
+    x=Math.max(mr.left+8,x); y=Math.min(Math.max(mr.top+8,y),mr.bottom-h-8);
+    el.style.left=x+"px"; el.style.top=y+"px";
+  }
+  $("popx").onclick=hidePop;
+  $("pop").addEventListener("click",ev=>{
+    if(ev.target.closest("[data-go]")){ ST.sector=POP.sec; ST.ak=POP.ak; buildFilters(); render(); openPanel(true); if(innerWidth<=760) hidePop(); else setTimeout(placePop,300); return; }
+    const fh=ev.target.closest("[data-pk]"); if(!fh||!fh.dataset.pk)return;
+    const a=fh.dataset.pk; POP.open.has(a)?POP.open.delete(a):POP.open.add(a); $("popc").innerHTML=popHTML(); placePop();
+  });
+  window.addEventListener("resize",placePop);
   function partida(r){
     const id="P:"+r.OBJECTID, op=ST.open.has(id);
     const sub=Math.round((r.CANT||0)*(r.UR||0)*100)/100, itb=(r.TC||0)-sub;
@@ -373,10 +409,10 @@ function(OAuthInfo,IM,WebMap,MapView,esriRequest,esriConfig){
   function openPanel(v){document.body.classList.toggle("open",v);$("tgl").textContent=v?"Presupuesto ◂":"Presupuesto ▸";$("hint").style.display=v?"none":"block"}
   $("tgl").onclick=()=>openPanel(!document.body.classList.contains("open"));
 
-  async function zoomAK(ak){
+  async function zoomAK(ak,pop){
     if(!ST.locales||!ST.view)return;
-    const r=await ST.locales.queryFeatures({where:"AK = '"+ak.replace(/'/g,"''")+"'",returnGeometry:true,outFields:["AK"]});
-    if(r.features.length) ST.view.goTo({target:r.features[0].geometry,zoom:20},{duration:600});
+    const r=await ST.locales.queryFeatures({where:"AK = '"+ak.replace(/'/g,"''")+"'",returnGeometry:true,outFields:["AK","SECTOR"]});
+    if(r.features.length){ const g=r.features[0].geometry; await ST.view.goTo({target:g,zoom:20},{duration:600}).catch(()=>{}); if(pop) showPop(ST.sector||r.features[0].attributes.SECTOR,ak,g); }
   }
   async function zoomSector(s){
     const lay=ST.map&&ST.map.allLayers.find(l=>l.title==="Sectores"); if(!lay)return;
